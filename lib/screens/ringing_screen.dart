@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/alarm_model.dart';
 import '../services/audio_service.dart';
+import '../services/alarm_notification_service.dart';
 import '../widgets/challenges/simon_says_widget.dart';
 import '../widgets/challenges/gyro_maze_widget.dart';
 
@@ -25,11 +26,10 @@ class _RingingScreenState extends State<RingingScreen> {
 
   Future<void> _startRinging() async {
     // If there's a custom audio path, play it. Otherwise play default system alarm
-    if (widget.alarm.customAudioPath != null) {
+    if (widget.alarm.customAudioPath != null && widget.alarm.customAudioPath!.isNotEmpty) {
       await _audioService.playAudio(widget.alarm.customAudioPath!);
     } else {
-      // NOTE: In a real app we'd trigger a local asset sound here or system ringtone
-      debugPrint("Playing default alarm sound...");
+      await _audioService.playAssetAudio('alarms/system_alarm.mp3');
     }
     setState(() {
       _isPlaying = true;
@@ -40,8 +40,14 @@ class _RingingScreenState extends State<RingingScreen> {
     if (_isPlaying) {
       await _audioService.stopAudio();
     }
+    
+    // Clear the notification
+    final notificationService = AlarmNotificationService();
+    await notificationService.cancelNotification(widget.alarm.id);
+    await notificationService.clearTriggeredAlarm(widget.alarm.id);
+    
     if (mounted) {
-      Navigator.pop(context); // Go back to dashboard or close app
+      Navigator.pop(context); // Go back to dashboard
     }
   }
 

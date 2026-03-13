@@ -54,7 +54,7 @@ class AudioService {
   Future<void> playSystemAlarm() async {
     // Play a system alarm sound
     await _audioPlayer.stop();
-    await _audioPlayer.play(AssetSource('assets/alarms/system_alarm.mp3'));
+    await _audioPlayer.play(AssetSource('alarms/system_alarm.mp3'));
   }
 
   Future<void> stopAudio() async {

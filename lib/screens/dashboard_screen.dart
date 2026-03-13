@@ -188,7 +188,10 @@ class DashboardScreen extends StatelessWidget {
         ),
         direction: DismissDirection.endToStart,
         onDismissed: (_) {
-          // TODO: Implement alarm deletion with undo
+          context.read<AlarmProvider>().deleteAlarm(alarm.id);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Alarm deleted')),
+          );
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
@@ -237,16 +240,23 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Alarm status indicator
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: alarm.isActive
-                        ? Colors.deepPurpleAccent
-                        : Colors.grey[600]!,
-                    shape: BoxShape.circle,
-                  ),
+                // Toggle Switch as requested "kapatma tuşu"
+                Switch(
+                  value: alarm.isActive,
+                  activeColor: Theme.of(context).colorScheme.secondary,
+                  thumbColor: MaterialStateProperty.all(Colors.white),
+                  onChanged: (val) {
+                    context.read<AlarmProvider>().toggleAlarm(alarm.id, val);
+                  },
+                ),
+                const SizedBox(width: 8),
+                // Explicit Delete Button as requested "silme tuşu"
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  onPressed: () {
+                    // Show confirmation dialog or just delete
+                    _showDeleteConfirmation(context, alarm.id);
+                  },
                 ),
               ],
             ),
@@ -288,16 +298,35 @@ class DashboardScreen extends StatelessWidget {
                 ],
               ),
             ),
-            trailing: Switch(
-              value: alarm.isActive,
-              activeColor: Theme.of(context).colorScheme.secondary,
-              thumbColor: MaterialStateProperty.all(Colors.white),
-              onChanged: (val) {
-                // TODO: Implement toggle with animation
-              },
-            ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context, int alarmId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: const Text('Delete Alarm?', style: TextStyle(color: Colors.white)),
+        content: const Text('Are you sure you want to delete this alarm?', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<AlarmProvider>().deleteAlarm(alarmId);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Alarm deleted')),
+              );
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
       ),
     );
   }

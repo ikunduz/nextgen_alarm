@@ -1,19 +1,54 @@
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/alarm_model.dart';
+import 'alarm_notification_service.dart';
 
 /// Background callback for alarms - this is called when alarm fires
 @pragma('vm:entry-point')
-Future<void> backgroundAlarmCallback() async {
-  debugPrint('🔔 ALARM IS RINGING! Background callback fired!');
+void backgroundAlarmCallback(int alarmId) async {
+  debugPrint('🔔 ALARM IS RINGING! Background callback fired for ID: $alarmId');
+
+  // Load alarms from shared preferences to get details for this ID
+  final prefs = await SharedPreferences.getInstance();
+  final String? alarmsJson = prefs.getString('nextgen_alarms');
   
-  // The Android Alarm Manager Plus plugin will automatically:
-  // 1. Wake up the device
-  // 2. Start the app if it's not running
-  // 3. Call this callback
-  
-  // We return immediately - the app should be started automatically
-  return Future.value();
+  String challengeType = 'none';
+  String? audioPath;
+  String alarmTime = DateTime.now().toString();
+
+  if (alarmsJson != null) {
+    try {
+      final List<dynamic> decoded = jsonDecode(alarmsJson);
+      final alarmData = decoded.firstWhere((e) => e['id'] == alarmId, orElse: () => null);
+      
+      if (alarmData != null) {
+        challengeType = alarmData['challengeType'] ?? 'none';
+        audioPath = alarmData['customAudioPath'];
+        alarmTime = alarmData['time'] ?? alarmTime;
+        debugPrint('Fetched alarm details: Challenge=$challengeType, audio=$audioPath');
+      } else {
+        debugPrint('No alarm data found for ID: $alarmId');
+      }
+    } catch (e) {
+      debugPrint('Error parsing alarms for background callback: $e');
+    }
+  }
+
+  // Save triggered info for the main app
+  await prefs.setInt('triggered_alarm_id', alarmId);
+  await prefs.setBool('alarm_triggered', true);
+
+  // Show full-screen notification
+  final notificationService = AlarmNotificationService();
+  await notificationService.init();
+  await notificationService.showAlarmNotification(
+    alarmId: alarmId,
+    alarmTime: alarmTime,
+    challengeType: challengeType,
+  );
 }
 
 class AlarmService {

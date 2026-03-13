@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/alarm_provider.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/ringing_screen.dart';
@@ -9,6 +10,10 @@ import 'screens/features_screen.dart';
 import 'services/audio_service.dart';
 import 'services/alarm_service.dart';
 import 'models/alarm_model.dart';
+
+import 'services/alarm_notification_service.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +52,11 @@ Future<void> _requestPermissions() async {
   if (!canSchedule) {
     debugPrint('Cannot schedule exact alarms - user needs to grant permission in settings');
   }
+
+  // Request notification permissions
+  final notificationService = AlarmNotificationService();
+  await notificationService.init();
+  await notificationService.requestPermissions();
 }
 
 class NextGenAlarmApp extends StatefulWidget {
@@ -80,25 +90,41 @@ class _NextGenAlarmAppState extends State<NextGenAlarmApp> with WidgetsBindingOb
     }
   }
   
-  void _checkForAlarmTrigger() {
-    // In a real app, we would check a flag or shared preferences
-    // to see if the alarm was triggered while the app was in background
-    // For now, we'll handle it through the ringing screen
+  void _checkForAlarmTrigger() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bool triggered = prefs.getBool('alarm_triggered') ?? false;
+    
+    if (triggered) {
+      final int? alarmId = prefs.getInt('triggered_alarm_id');
+      if (alarmId != null) {
+        // Clear the trigger flags immediately so we don't loop
+        await prefs.setBool('alarm_triggered', false);
+        
+        // Find the alarm in the provider
+        if (mounted) {
+          final alarmProvider = Provider.of<AlarmProvider>(context, listen: false);
+          final alarm = alarmProvider.alarms.cast<AlarmModel?>().firstWhere((a) => a?.id == alarmId, orElse: () => null);
+          
+          if (alarm != null) {
+            _showRingingScreen(alarm);
+          }
+        }
+      }
+    }
   }
 
   void _showRingingScreen(AlarmModel alarm) {
-    if (mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => RingingScreen(alarm: alarm),
-        ),
-      );
-    }
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => RingingScreen(alarm: alarm),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'NextGen Alarm',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
