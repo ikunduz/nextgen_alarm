@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'providers/alarm_provider.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/ringing_screen.dart';
 import 'screens/features_screen.dart';
 import 'services/audio_service.dart';
 import 'services/alarm_service.dart';
+import 'models/alarm_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,13 +49,52 @@ Future<void> _requestPermissions() async {
   }
 }
 
-Future<bool> _checkAndRequestNotificationPermission() async {
-  // This will be handled by the flutter_local_notifications plugin
-  return true;
+class NextGenAlarmApp extends StatefulWidget {
+  const NextGenAlarmApp({super.key});
+
+  @override
+  State<NextGenAlarmApp> createState() => _NextGenAlarmAppState();
 }
 
-class NextGenAlarmApp extends StatelessWidget {
-  const NextGenAlarmApp({super.key});
+class _NextGenAlarmAppState extends State<NextGenAlarmApp> with WidgetsBindingObserver {
+  AlarmModel? _activeAlarm;
+  
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkForAlarmTrigger();
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Check if app was resumed from an alarm
+      _checkForAlarmTrigger();
+    }
+  }
+  
+  void _checkForAlarmTrigger() {
+    // In a real app, we would check a flag or shared preferences
+    // to see if the alarm was triggered while the app was in background
+    // For now, we'll handle it through the ringing screen
+  }
+
+  void _showRingingScreen(AlarmModel alarm) {
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => RingingScreen(alarm: alarm),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

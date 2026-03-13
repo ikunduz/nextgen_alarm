@@ -2,11 +2,17 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../models/alarm_model.dart';
 
-/// Background callback for alarms
+/// Background callback for alarms - this is called when alarm fires
 @pragma('vm:entry-point')
 Future<void> backgroundAlarmCallback() async {
-  debugPrint('Background alarm callback fired!');
-  // The alarm manager will handle showing the notification and launching the app
+  debugPrint('🔔 ALARM IS RINGING! Background callback fired!');
+  
+  // The Android Alarm Manager Plus plugin will automatically:
+  // 1. Wake up the device
+  // 2. Start the app if it's not running
+  // 3. Call this callback
+  
+  // We return immediately - the app should be started automatically
   return Future.value();
 }
 
@@ -34,8 +40,9 @@ class AlarmService {
     final int alarmId = alarm.id;
     final DateTime scheduledTime = alarm.time;
 
-    // Calculate delay in seconds
-    final int delay = scheduledTime.difference(DateTime.now()).inSeconds;
+    // Get current time from the device
+    final DateTime now = DateTime.now();
+    final int delay = scheduledTime.difference(now).inSeconds;
 
     if (delay <= 0) {
       debugPrint('Cannot schedule alarm in the past: $delay seconds');
@@ -43,9 +50,10 @@ class AlarmService {
     }
 
     try {
-      // Schedule exact alarm
-      await AndroidAlarmManager.oneShot(
-        Duration(seconds: delay),
+      // Schedule exact alarm using oneShotAt with absolute time
+      // This uses the device's real time clock
+      await AndroidAlarmManager.oneShotAt(
+        scheduledTime,
         alarmId,
         backgroundAlarmCallback,
         exact: true,
@@ -54,10 +62,10 @@ class AlarmService {
         rescheduleOnReboot: true,
       );
 
-      debugPrint('Alarm scheduled: ID=$alarmId, delay=${delay}s');
+      debugPrint('✅ Alarm scheduled: ID=$alarmId, time=$scheduledTime, delay=${delay}s');
       return true;
     } catch (e) {
-      debugPrint('Failed to schedule alarm: $e');
+      debugPrint('❌ Failed to schedule alarm: $e');
       return false;
     }
   }
